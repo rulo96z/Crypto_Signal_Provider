@@ -8,13 +8,26 @@ import json
 import plotly
 import yfinance as yf
 import matplotlib.pyplot as plt
+from PIL import Image
+from fbprophet import Prophet
+import hvplot.pandas
+import datetime as dt
+import numpy as np
+
 
 # Load .env environment variables
 load_dotenv()
 
+## Page expands to full width
+st.set_page_config(layout='wide')
+
+image = Image.open('images/crypto_image.jpg')
+st.image(image,width = 600)
+
 # Header for main and sidebar
-st.title( "Crypto Signal Provider")
-st.sidebar.title("Options")
+st.title( "Crypto Signal Provider Web App")
+st.markdown("""This app displays top 10 cryptocurrencies by market cap.""")
+st.sidebar.title("Crypto Signal Settings")
 
 # Get nomics api key
 nomics_api_key = os.getenv("NOMICS_API_KEY")
@@ -31,7 +44,7 @@ top_cryptos_df = pd.DataFrame()
 top_cryptos_df = nomics_df[['rank', 'logo_url', 'currency', 'name', 'price', 'price_date', 'market_cap']]
 
 # This code gives us the sidebar on streamlit for the different dashboards
-option = st.sidebar.selectbox("Dashboards", ('Top 10 Cryptocurrencies by Market Cap', '2nd Dashboard', '3rd Dashboard'))
+option = st.sidebar.selectbox("Dashboards", ('Top 10 Cryptocurrencies by Market Cap', 'Machine Learning - sklearn', '3rd Dashboard'))
 
 # Rename column labels
 columns=['Rank', 'Logo', 'Symbol', 'Currency', 'Price (USD)', 'Price Date', 'Market Cap']
@@ -57,13 +70,14 @@ coin = top_cryptos_df['Symbol'] + "-USD"
 dropdown = st.sidebar.multiselect("Select coin to analyze", coin)
 
 # Create start date for analysis
-start = st.sidebar.date_input('Start', value = pd.to_datetime('today'))
+start = st.sidebar.date_input('Start Date', value = pd.to_datetime('today'))
 
 # Create end date for analysis
-end = st.sidebar.date_input('End', value = pd.to_datetime('today'))
+end = st.sidebar.date_input('End Date', value = pd.to_datetime('today'))
 
 # This is the Header for each page
 st.header(option)
+
 
 
 # This option gives users the ability to view the current top 100 cryptocurrencies
@@ -73,16 +87,24 @@ if option == 'Top 10 Cryptocurrencies by Market Cap':
     top_cryptos_df.Logo = path_to_image_html(top_cryptos_df.Logo)
     st.write(top_cryptos_df.to_html(escape=False), unsafe_allow_html=True)
     st.text("")
-
+        
     # Line charts are created based on dropdown selection
     if len(dropdown) > 0:
         coin_choice = dropdown[0] 
         coin_list = yf.download(coin_choice,start,end)
         coin_list['Ticker'] = coin_choice
-        # st.write('Selected list of cryptocurrencies')
-        st.write(coin_list)
-        st.text("")
 
-        # Display coin_list into a chart
-        st.write('Selected Cryptocurrency Over Time')
-        st.line_chart(coin_list['Adj Close'])
+    # Displays dataframe of selected cryptocurrency
+    st.subheader('Selected Cryptocurrency')
+    st.dataframe(coin_list)
+    st.text("")
+
+    # Display coin_list into a chart
+    st.subheader('Selected Cryptocurrency Over Time')
+    st.line_chart(coin_list['Adj Close'])
+
+
+# This option gives users the ability to use sklearn
+if option == 'Machine Learning - FB Prophet':
+
+    st.write(dropdown)
