@@ -13,7 +13,7 @@ from fbprophet import Prophet
 import hvplot as hv
 import hvplot.pandas 
 import datetime as dt
-import numpy as np
+from babel.numbers import format_currency
 
 
 # Load .env environment variables
@@ -42,23 +42,45 @@ nomics_df = pd.read_json(nomics_currency_url)
 top_cryptos_df = pd.DataFrame()
 
 # Get rank, crytocurrency, price, price_date, market cap
-top_cryptos_df = nomics_df[['rank', 'logo_url', 'currency', 'name', 'price', 'price_date', 'market_cap']]
+top_cryptos_df = nomics_df[['rank', 'logo_url', 'name', 'currency', 'price', 'price_date', 'market_cap']]
 
 # This code gives us the sidebar on streamlit for the different dashboards
 option = st.sidebar.selectbox("Dashboards", ('Top 10 Cryptocurrencies by Market Cap', 'Time-Series Forecasting - FB Prophet', '3rd Dashboard'))
 
 # Rename column labels
-columns=['Rank', 'Logo', 'Symbol', 'Currency', 'Price (USD)', 'Price Date', 'Market Cap']
+columns=['Rank', 'Logo', 'Currency', 'Symbol', 'Price (USD)', 'Price Date', 'Market Cap']
 top_cryptos_df.columns=columns
 
 # Set rank as index
 top_cryptos_df.set_index('Rank', inplace=True)
 
 # Convert text data type to numerical data type
-top_cryptos_df['Market Cap'] = top_cryptos_df['Market Cap'].astype('float64')
+top_cryptos_df['Market Cap'] = top_cryptos_df['Market Cap'].astype('int')
 
 # Convert Timestamp to date only
 top_cryptos_df['Price Date']=pd.to_datetime(top_cryptos_df['Price Date']).dt.date
+
+# Replace nomics ticker symbol with yfinance ticker symbol
+top_cryptos_df.loc[:,"Symbol"] = top_cryptos_df.loc[:,"Symbol"].str.replace("LUNA","LUNA1")
+top_cryptos_df.loc[:,"Symbol"] = top_cryptos_df.loc[:,"Symbol"].str.replace("FTXTOKEN","FTT")
+top_cryptos_df.loc[:,"Symbol"] = top_cryptos_df.loc[:,"Symbol"].str.replace("UNI","UNI1")
+top_cryptos_df.loc[:,"Symbol"] = top_cryptos_df.loc[:,"Symbol"].str.replace("AXS2","AXS")
+top_cryptos_df.loc[:,"Symbol"] = top_cryptos_df.loc[:,"Symbol"].str.replace("SAND2","SAND")
+top_cryptos_df.loc[:,"Symbol"] = top_cryptos_df.loc[:,"Symbol"].str.replace("HARMONY","ONE1")
+top_cryptos_df.loc[:,"Symbol"] = top_cryptos_df.loc[:,"Symbol"].str.replace("HELIUM","HNT")
+top_cryptos_df.loc[:,"Symbol"] = top_cryptos_df.loc[:,"Symbol"].str.replace("GRT","GRT1")
+top_cryptos_df.loc[:,"Symbol"] = top_cryptos_df.loc[:,"Symbol"].str.replace("IOT","MIOTA")
+top_cryptos_df.loc[:,"Symbol"] = top_cryptos_df.loc[:,"Symbol"].str.replace("BLOCKSTACK","STX")
+top_cryptos_df.loc[:,"Symbol"] = top_cryptos_df.loc[:,"Symbol"].str.replace("FLOW2","FLOW")
+top_cryptos_df.loc[:,"Symbol"] = top_cryptos_df.loc[:,"Symbol"].str.replace("BITTORRENT","BTT")
+top_cryptos_df.loc[:,"Symbol"] = top_cryptos_df.loc[:,"Symbol"].str.replace("AMP2","AMP")
+top_cryptos_df.loc[:,"Symbol"] = top_cryptos_df.loc[:,"Symbol"].str.replace("HOT","HOT1")
+
+# Format Market Cap with commas to separate thousands
+top_cryptos_df["Market Cap"] = top_cryptos_df.apply(lambda x: "{:,}".format(x['Market Cap']), axis=1)
+
+# Formatting Price (USD) to currency
+top_cryptos_df["Price (USD)"] = top_cryptos_df["Price (USD)"].apply(lambda x: format_currency(x, currency="USD", locale="en_US"))
 
 # Convert your links to html tags 
 def path_to_image_html(Logo):
@@ -67,11 +89,12 @@ def path_to_image_html(Logo):
 # Pulls list of cryptocurrencies from nomics and concatenates to work with Yahoo Finance
 coin = top_cryptos_df['Symbol'] + "-USD"
 
+
 # Creates a dropdown list of cryptocurrencies based on top 100 list
-dropdown = st.sidebar.multiselect("Select coin to analyze", coin)
+dropdown = st.sidebar.multiselect("Select 1 coin to analyze", coin, default=['SOL-USD'])
 
 # Create start date for analysis
-start = st.sidebar.date_input('Start Date', value = pd.to_datetime('today'))
+start = st.sidebar.date_input('Start Date', value = pd.to_datetime('2020-01-01'))
 
 # Create end date for analysis
 end = st.sidebar.date_input('End Date', value = pd.to_datetime('today'))
@@ -130,7 +153,7 @@ if option == 'Time-Series Forecasting - FB Prophet':
     # Make the prediction go out as far as 60 days
     future_coin_trends = model_coin_trends.make_future_dataframe(periods = 60, freq='D')
 
-    # Make the predictions for the trend data using the future_mercado_trends DataFrame
+    # Make the predictions for the trend data using the future_coin_trends DataFrame
     forecast_coin_trends = model_coin_trends.predict(future_coin_trends)
 
     # Plot the Prophet predictions for the Coin trends data
