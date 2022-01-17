@@ -45,7 +45,7 @@ top_cryptos_df = pd.DataFrame()
 top_cryptos_df = nomics_df[['rank', 'logo_url', 'name', 'currency', 'price', 'price_date', 'market_cap']]
 
 # This code gives us the sidebar on streamlit for the different dashboards
-option = st.sidebar.selectbox("Dashboards", ('Top 10 Cryptocurrencies by Market Cap', 'Time-Series Forecasting - FB Prophet', '3rd Dashboard'))
+option = st.sidebar.selectbox("Dashboards", ('Top 10 Cryptocurrencies by Market Cap', 'Time-Series Forecasting - FB Prophet', 'Keras Model'))
 
 # Rename column labels
 columns=['Rank', 'Logo', 'Currency', 'Symbol', 'Price (USD)', 'Price Date', 'Market Cap']
@@ -112,6 +112,7 @@ if option == 'Top 10 Cryptocurrencies by Market Cap':
         coin_choice = dropdown[0] 
         coin_list = yf.download(coin_choice,start,end)
         coin_list['Ticker'] = coin_choice
+        coin_list.index=pd.to_datetime(coin_list.index).date
 
     # Displays dataframe of selected cryptocurrency
     st.subheader(f"Selected Crypto:  {dropdown}")
@@ -123,7 +124,7 @@ if option == 'Top 10 Cryptocurrencies by Market Cap':
     st.line_chart(coin_list['Adj Close'])
 
 
-# This option gives users the ability to use sklearn
+# This option gives users the ability to use FB Prophet
 if option == 'Time-Series Forecasting - FB Prophet':
 
     st.subheader("Time-Series Forecasting - FB Prophet")
@@ -168,6 +169,109 @@ if option == 'Time-Series Forecasting - FB Prophet':
     # From the forecast_coin_trends_df DataFrame, rename columns
     coin_columns=['Most Likely (Average) Forecast', 'Worst Case Prediction', 'Best Case Prediction']
     forecast_coin_trends_df.columns=coin_columns
+    forecast_coin_trends_df.index=pd.to_datetime(forecast_coin_trends_df.index).date
     
     st.subheader(f'{dropdown} - Price Predictions')
     st.dataframe(forecast_coin_trends_df)
+
+# This option gives users the ability to use Keras Model
+if option == 'Keras Model':
+
+    import tensorflow as tf
+    from tensorflow.keras.layers import Dense
+    from tensorflow.keras.models import Sequential
+    from sklearn.model_selection import train_test_split
+    from sklearn.preprocessing import StandardScaler, OneHotEncoder
+    from tensorflow.keras import layers
+
+    # Line charts are created based on dropdown selection
+    if len(dropdown) > 0:
+        coin_choice = dropdown[0] 
+        coin_list = yf.download(coin_choice,start,end)
+        #coin_list['Ticker'] = coin_choice # This tests that the selected ticker is displayed in the DataFrame
+
+    # Preparing the data
+    # Displays dataframe of selected cryptocurrency.  Isolated columns as trading features for forecasting cryptocurrency.
+    st.subheader(f"Keras Model")
+    st.subheader(f"Selected Crypto:  {dropdown}")
+    coin_training_df = coin_list#[["Close", "High", "Low", "Open", "Volume"]]
+    coin_training_df.index=pd.to_datetime(coin_training_df.index).date
+    st.dataframe(coin_training_df)
+
+    # Define the target set y using "Close" column
+    y = coin_training_df["Close"]
+
+    # Define the features set for X by selecting all columns but "Close" column
+    X = coin_training_df.drop(columns=["Close"])
+
+    # Split the features and target sets into training and testing datasets
+    # Assign the function a random_state equal to 1
+    X_train, X_test, y_train, y_test = train_test_split(X,y,random_state=1)
+
+    # Create a StandardScaler instance
+    scaler = StandardScaler()
+
+    # Fit the scaler to teh features training dataset
+    X_scaler = scaler.fit(X_train)
+
+    # Fit the scaler to the features training dataset
+    X_train_scaled = X_scaler.transform(X_train)
+    X_test_scaled = X_scaler.transform(X_test)
+
+    # Define the number of inputs (features) to the model
+    number_input_features = len(X_train.iloc[0])
+
+    # Define the number of neurons in teh output layer
+    st.write("Create Network:")
+    in_pl = st.empty() # Put default to 1
+    number_output_neurons = st.number_input("Enter number of neurons in output layer", 1)
+
+    # Define the number of hidden nodes for the first hidden layer
+    hidden_nodes_layer1 = (number_input_features + number_output_neurons)//2
+
+    # Define the number of hidden noes for the second hidden layer
+    hidden_nodes_layer2 = (hidden_nodes_layer1 + number_output_neurons)//2
+    
+    # Create the Sequential model instance
+    nn = Sequential()
+
+    # User selects activation for 1st hidden layer
+    first_activation = st.selectbox("Choose 1st hidden layer activation function", ('relu',' '))
+
+    # Add the first hidden layer
+    nn.add(Dense(units=hidden_nodes_layer1, input_dim=number_input_features, activation=first_activation))
+
+    # User selects activation for 2nd hidden layer
+    second_activation = st.selectbox("Choose 2nd hidden layer activation function", ('relu',' '))
+
+    # Add the second hidden layer
+    nn.add(Dense(units=hidden_nodes_layer2,activation=second_activation))
+
+    # User selects activation for output layer
+    output_activation = st.selectbox("Choose output layer activation function", ('sigmoid',' '))
+
+    # Add the output layer to the model specifying the number of output neurons and activation function
+    nn.add(Dense(units=number_output_neurons, activation=output_activation))
+
+    # Display the Sequential model summary - WHY IS THIS NONE
+    # st.write(nn.summary())
+
+    # Define functions
+    loss = st.selectbox("Choose loss function", ('binary_crossentropy',' '))
+    optimizer = st.selectbox("Choose optimizer", ('adam',' '))
+    metrics = st.selectbox("Choose evaluation metric", ('accuracy',' '))
+
+    # Compile the Sequential model
+    nn.compile(loss=loss, optimizer=optimizer, metrics=[metrics])
+
+    # Fit the model using 50 epochs and the training data
+    epochs = st.number_input("Enter number of epochs", 50)
+    epochs = int(epochs)
+
+    fit_model=nn.fit(X_train_scaled, y_train, epochs=epochs) #ERROR STARTS HERE
+    
+    # Evaluate the model loss and accuracy metrics using the evaluate method and the test data
+    model_loss, model_accuracy = nn.evaluate(X_test_scaled, y_test, verbose =2)
+    
+    # Display the model loss and accuracy results
+    st.write(f"Loss: {model_loss}, Accuracy: {model_accuracy}")
