@@ -14,7 +14,15 @@ import hvplot as hv
 import hvplot.pandas 
 import datetime as dt
 from babel.numbers import format_currency
-
+import tensorflow as tf
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.models import Sequential
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn import svm
+from pandas.tseries.offsets import DateOffset
+from sklearn.metrics import classification_report
+from sklearn.ensemble import AdaBoostClassifier
 
 # Load .env environment variables
 load_dotenv()
@@ -45,7 +53,7 @@ top_cryptos_df = pd.DataFrame()
 top_cryptos_df = nomics_df[['rank', 'logo_url', 'name', 'currency', 'price', 'price_date', 'market_cap']]
 
 # This code gives us the sidebar on streamlit for the different dashboards
-option = st.sidebar.selectbox("Dashboards", ('Top 10 Cryptocurrencies by Market Cap', 'Time-Series Forecasting - FB Prophet', 'Keras Model'))
+option = st.sidebar.selectbox("Dashboards", ('Top 10 Cryptocurrencies by Market Cap', 'Time-Series Forecasting - FB Prophet', 'Keras Model', 'Machine Learning Classifier - AdaBoost'))
 
 # Rename column labels
 columns=['Rank', 'Logo', 'Currency', 'Symbol', 'Price (USD)', 'Price Date', 'Market Cap']
@@ -177,13 +185,6 @@ if option == 'Time-Series Forecasting - FB Prophet':
 # This option gives users the ability to use Keras Model
 if option == 'Keras Model':
 
-    import tensorflow as tf
-    from tensorflow.keras.layers import Dense
-    from tensorflow.keras.models import Sequential
-    from sklearn.model_selection import train_test_split
-    from sklearn.preprocessing import StandardScaler, OneHotEncoder
-    from tensorflow.keras import layers
-
     # Line charts are created based on dropdown selection
     if len(dropdown) > 0:
         coin_choice = dropdown[0] 
@@ -221,9 +222,8 @@ if option == 'Keras Model':
     # Define the number of inputs (features) to the model
     number_input_features = len(X_train.iloc[0])
 
-    # Define the number of neurons in teh output layer
+    # Define the number of neurons in the output layer
     st.write("Create Network:")
-    in_pl = st.empty() # Put default to 1
     number_output_neurons = st.number_input("Enter number of neurons in output layer", 1)
 
     # Define the number of hidden nodes for the first hidden layer
@@ -275,3 +275,131 @@ if option == 'Keras Model':
     
     # Display the model loss and accuracy results
     st.write(f"Loss: {model_loss}, Accuracy: {model_accuracy}")
+
+# User selects AdaBoost
+if option == 'Machine Learning Classifier - AdaBoost':
+        # Line charts are created based on dropdown selection
+    if len(dropdown) > 0:
+        coin_choice = dropdown[0] 
+        coin_list = yf.download(coin_choice,start,end)
+        #coin_list['Ticker'] = coin_choice # This tests that the selected ticker is displayed in the DataFrame
+        
+    # Preparing the data
+    # Displays dataframe of selected cryptocurrency.  Isolated columns as trading features for forecasting cryptocurrency.
+    st.subheader(f"AdaBoost")
+    st.subheader(f"Selected Crypto:  {dropdown}")
+    coin_yf_df = coin_list.drop(columns='Adj Close')
+    coin_yf_df_copy = coin_yf_df
+    coin_yf_df.index=pd.to_datetime(coin_yf_df.index).date
+    st.dataframe(coin_yf_df)
+
+    # Filter the date index and close columns
+    coin_signals_df = coin_yf_df_copy.loc[:,["Close"]]
+    
+    # Use the pct_change function to generate returns from close prices
+    coin_signals_df["Actual Returns"] = coin_signals_df["Close"].pct_change()
+
+    # Drop all NaN values from the DataFrame
+    coin_signals_df = coin_signals_df.dropna()
+
+    # Set the short window and long window
+    short_window = st.number_input("Set a short window:", 4)
+    short_window = int(short_window)
+
+    long_window = st. number_input("Set a long window:", 100)
+    long_window = int(long_window)
+
+    # Generate the fast and slow simple moving averages
+    coin_signals_df["SMA Fast"] = coin_signals_df["Close"].rolling(window=short_window).mean()
+    coin_signals_df["SMA Slow"] = coin_signals_df["Close"].rolling(window=long_window).mean()
+
+    coin_signals_df = coin_signals_df.dropna()
+
+    # Initialize the new Signal Column
+    coin_signals_df['Signal'] = 0.0
+    coin_signals_df['Signal'] = coin_signals_df['Signal']
+   
+    # When Actual Returns are greater than or equal to 0, generate signal to buy stock long
+    coin_signals_df.loc[(coin_signals_df["Actual Returns"] >= 0), "Signal"] = 1
+
+    # When Actual Returns are less than 0, generate signal to sell stock short
+    coin_signals_df.loc[(coin_signals_df["Actual Returns"] < 0), "Signal"] = -1
+
+    # Calculate the strategy returns and add them to the coin_signals_df DataFrame
+    coin_signals_df["Strategy Returns"] = coin_signals_df["Actual Returns"] * coin_signals_df["Signal"].shift()
+
+    # Plot Strategy Returns to examine performance
+    st.write(f"{dropdown} Performance by Strategy Returns")
+    st.line_chart ((1 + coin_signals_df['Strategy Returns']).cumprod())
+ 
+    # Spril data into training and testing datasets
+    # Assign a copy of the sma_fast and sma_slow columns to a features DataFrame called X
+    X = coin_signals_df[['SMA Fast', 'SMA Slow']].shift().dropna()
+
+    # Create the target set selecting the Signal column and assigning it to y
+    y = coin_signals_df["Signal"]
+
+    # Select the start of the training period
+    training_begin = X.index.min()
+
+    # Select the ending period for the trianing data with an offet timeframe
+    training_end = X.index.min() + DateOffset(months=6)
+
+    # Generate the X_train and y_train DataFrame
+    X_train = X.loc[training_begin:training_end]
+    y_train = y.loc[training_begin:training_end]
+
+    # Generate the X_test and y_test DataFrames
+    X_test = X.loc[training_end+DateOffset(days=1):]
+    y_test = y.loc[training_end+DateOffset(days=1):]
+
+
+####
+
+    # Scale the features DataFrame
+    # Create a StandardScaler instance
+    scaler = StandardScaler()
+
+    # Apply the scaler model to fit the X_train data
+    X_scaler = scaler.fit(X_train)
+
+    # Transform the X_train and X_test DataFrame using the X_scaler
+    X_train_scaled = X_scaler.transform(X_train)
+    X_test_scaled = X_scaler.transform(X_test)
+    
+
+####
+    # Initiate the AdaBoostClassifier model instance
+    ab_model = AdaBoostClassifier()
+
+    # Fit the model using the training data
+    ab_model.fit(X_train,y_train)
+
+    # Use the testing dataset to generate the predictions for the new model
+    ab_y_pred = ab_model.predict(X_test)
+
+    # Backtest the AdaBoost Model to evaluate performance
+    ab_testing_report = classification_report(y_test,ab_y_pred)
+
+    # Print the classification report
+    st.write(ab_testing_report)
+
+    # Create a new empty predictions DataFrame.
+
+    # Create a predictions DataFrame
+    alt_predictions_df = pd.DataFrame(index=X_test.index)
+
+    # Add the SVM model predictions to the DataFrame
+    alt_predictions_df['Predicted'] = ab_y_pred
+
+    # Add the actual returns to the DataFrame
+    alt_predictions_df['Actual Returns'] = coin_signals_df['Actual Returns']
+
+    # Add the strategy returns to the DataFrame
+    alt_predictions_df['Strategy Returns'] = (alt_predictions_df['Actual Returns'] * alt_predictions_df['Predicted'])
+
+    st.subheader(f"Predictions: {dropdown}")
+    st.dataframe(alt_predictions_df)
+
+    st.subheader(f"Actual Returns vs. Strategy Returns")
+    st.line_chart((1 + alt_predictions_df[['Actual Returns','Strategy Returns']]).cumprod())
