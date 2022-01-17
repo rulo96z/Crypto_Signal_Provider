@@ -53,7 +53,7 @@ top_cryptos_df = pd.DataFrame()
 top_cryptos_df = nomics_df[['rank', 'logo_url', 'name', 'currency', 'price', 'price_date', 'market_cap']]
 
 # This code gives us the sidebar on streamlit for the different dashboards
-option = st.sidebar.selectbox("Dashboards", ('Top 10 Cryptocurrencies by Market Cap', 'Time-Series Forecasting - FB Prophet', 'Keras Model', 'Machine Learning Classifier - AdaBoost'))
+option = st.sidebar.selectbox("Dashboards", ('Top 10 Cryptocurrencies by Market Cap', 'Time-Series Forecasting - FB Prophet', 'Keras Model', 'Machine Learning Classifier - AdaBoost', 'Support Vector Machines'))
 
 # Rename column labels
 columns=['Rank', 'Logo', 'Currency', 'Symbol', 'Price (USD)', 'Price Date', 'Market Cap']
@@ -403,3 +403,129 @@ if option == 'Machine Learning Classifier - AdaBoost':
 
     st.subheader(f"Actual Returns vs. Strategy Returns")
     st.line_chart((1 + alt_predictions_df[['Actual Returns','Strategy Returns']]).cumprod())
+
+
+            
+            #### SUPPORT VECTOR MACHINES ####
+
+    # This option gives users the ability to use SVM model
+if option == 'Support Vector Machines':
+       # Line charts are created based on dropdown selection
+    if len(dropdown) > 0:
+        coin_choice = dropdown[0] 
+        coin_list = yf.download(coin_choice,start,end)
+        
+    # Displays dataframe of selected cryptocurrency.
+    st.subheader(f'Support Vector Machines')
+    st.subheader(f"Selected Crypto:  {dropdown}")
+    coin_yf_df = coin_list.drop(columns='Adj Close')
+    coin_yf_df_copy = coin_yf_df
+    coin_yf_df.index=pd.to_datetime(coin_yf_df.index).date
+    st.dataframe(coin_yf_df)
+
+    # Filter the date index and close columns
+    coin_signals_df = coin_yf_df_copy.loc[:,["Close"]]
+    
+    # Use the pct_change function to generate  returns from close prices
+    coin_signals_df["Actual Returns"] = coin_signals_df["Close"].pct_change()
+
+    # Drop all NaN values from the DataFrame
+    coin_signals_df = coin_signals_df.dropna()
+
+    # Generate the fast and slow simple moving averages (user gets to select window size)
+    short_window = st.number_input("Set a short window:", 4)
+    short_window = int(short_window)
+
+    long_window = st. number_input("Set a long window:", 85)
+    long_window = int(long_window)
+
+    # Generate the fast and slow simple moving averages
+    coin_signals_df["SMA Fast"] = coin_signals_df["Close"].rolling(window=short_window).mean()
+    coin_signals_df["SMA Slow"] = coin_signals_df["Close"].rolling(window=long_window).mean()
+
+    coin_signals_df = coin_signals_df.dropna()
+
+    # Initialize the new Signal Column
+    coin_signals_df['Signal'] = 0.0
+    coin_signals_df['Signal'] = coin_signals_df['Signal']
+   
+    # When Actual Returns are greater than or equal to 0, generate signal to buy stock long
+    coin_signals_df.loc[(coin_signals_df["Actual Returns"] >= 0), "Signal"] = 1
+
+    # When Actual Returns are less than 0, generate signal to sell stock short
+    coin_signals_df.loc[(coin_signals_df["Actual Returns"] < 0), "Signal"] = -1
+
+    # Calculate the strategy returns and add them to the coin_signals_df DataFrame
+    coin_signals_df["Strategy Returns"] = coin_signals_df["Actual Returns"] * coin_signals_df["Signal"].shift()
+
+    # Plot Strategy Returns to examine performance
+    st.write(f"{dropdown} Performance by Strategy Returns")
+    st.line_chart ((1 + coin_signals_df['Strategy Returns']).cumprod())
+ 
+    
+    # Assign a copy of the sma_fast and sma_slow columns to a features DataFrame called X
+    svm_X = coin_signals_df[['SMA Fast', 'SMA Slow']].shift().dropna()
+
+    # Create the target set selecting the Signal column and assigning it to y
+    svm_y = coin_signals_df["Signal"]
+
+    # Select the start of the training period
+    svm_training_begin = svm_X.index.min()
+   
+    
+    #### Setting the training data to three or above 3 seems to throw off callculations where one signal or the other isnt predicted #### 
+    #### Is there a way to make this a selection the user makes? ####
+
+    # Select the ending period for the training data with an offset of 2 months
+    svm_training_end = (svm_X.index.min() + DateOffset(months=2))
+                                    
+    # Generate the X_train and y_train DataFrame
+    svm_X_train = svm_X.loc[svm_training_begin:svm_training_end]
+    svm_y_train = svm_y.loc[svm_training_begin:svm_training_end]
+
+    # Generate the X_test and y_test DataFrames
+    svm_X_test = svm_X.loc[svm_training_end+DateOffset(days=1):]
+    svm_y_test = svm_y.loc[svm_training_end+DateOffset(days=1):]
+
+    # Scale the features DataFrame with StandardScaler
+    svm_scaler = StandardScaler()
+
+    # Apply the scaler model to fit the X_train data
+    svm_X_scaler = svm_scaler.fit(svm_X_train)
+
+    # Transform the X_train and X_test DataFrame using the X_scaler
+    svm_X_train_scaled = svm_X_scaler.transform(svm_X_train)
+    svm_X_test_scaled = svm_X_scaler.transform(svm_X_test)
+    
+    ## From SVM, instantiate SVC classifier model instance
+    svm_model = svm.SVC()
+
+    # Fit the model with the training data
+    svm_model.fit(svm_X_train,svm_y_train)
+
+    # Use the testing dataset to generate the predictions
+    svm_y_pred = svm_model.predict(svm_X_test)
+
+    # Use a classification report to evaluate the model using the predictions and testing data
+    svm_testing_report = classification_report(svm_y_test,svm_y_pred)
+
+    # Print the classification report
+    st.write(svm_testing_report)
+
+    # Create a predictions DataFrame
+    svm_predictions_df = pd.DataFrame(index=svm_X_test.index)
+
+    # Add the SVM model predictions to the DataFrame
+    svm_predictions_df['Predicted'] = svm_y_pred
+
+    # Add the actual returns to the DataFrame
+    svm_predictions_df['Actual Returns'] = coin_signals_df['Actual Returns']
+
+    # Add the strategy returns to the DataFrame
+    svm_predictions_df['Strategy Returns'] = (svm_predictions_df['Actual Returns'] * svm_predictions_df['Predicted'])
+
+    st.subheader(f"Predictions: {dropdown}")
+    st.dataframe(svm_predictions_df)
+
+    st.subheader(f"Actual Returns vs. Strategy Returns")
+    st.line_chart((1 + svm_predictions_df[['Actual Returns','Strategy Returns']]).cumprod())
