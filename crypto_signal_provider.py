@@ -236,7 +236,7 @@ if option == 'Keras Model':
     nn = Sequential()
 
     # User selects activation for 1st hidden layer
-    first_activation = st.selectbox("Choose 1st hidden layer activation function", ('relu',' '))
+    first_activation = st.selectbox("Choose 1st hidden layer activation function", ('relu','sigmoid', 'tanh'))
 
     # Add the first hidden layer
     nn.add(Dense(units=hidden_nodes_layer1, input_dim=number_input_features, activation=first_activation))
