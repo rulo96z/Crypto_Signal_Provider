@@ -289,12 +289,11 @@ if option == 'Machine Learning Classifier - AdaBoost':
     st.subheader(f"AdaBoost")
     st.subheader(f"Selected Crypto:  {dropdown}")
     coin_yf_df = coin_list.drop(columns='Adj Close')
-    coin_yf_df_copy = coin_yf_df
     coin_yf_df.index=pd.to_datetime(coin_yf_df.index).date
     st.dataframe(coin_yf_df)
 
     # Filter the date index and close columns
-    coin_signals_df = coin_yf_df_copy.loc[:,["Close"]]
+    coin_signals_df = coin_yf_df.loc[:,["Close"]]
     
     # Use the pct_change function to generate returns from close prices
     coin_signals_df["Actual Returns"] = coin_signals_df["Close"].pct_change()
@@ -306,7 +305,7 @@ if option == 'Machine Learning Classifier - AdaBoost':
     short_window = st.number_input("Set a short window:", 4)
     short_window = int(short_window)
 
-    long_window = st. number_input("Set a long window:", 100)
+    long_window = st. number_input("Set a long window:", 85)
     long_window = int(long_window)
 
     # Generate the fast and slow simple moving averages
@@ -332,18 +331,25 @@ if option == 'Machine Learning Classifier - AdaBoost':
     st.write(f"{dropdown} Performance by Strategy Returns")
     st.line_chart ((1 + coin_signals_df['Strategy Returns']).cumprod())
  
-    # Spril data into training and testing datasets
+    # Split data into training and testing datasets
     # Assign a copy of the sma_fast and sma_slow columns to a features DataFrame called X
     X = coin_signals_df[['SMA Fast', 'SMA Slow']].shift().dropna()
 
     # Create the target set selecting the Signal column and assigning it to y
     y = coin_signals_df["Signal"]
 
+    st.subheader("Training Model")
     # Select the start of the training period
+    #training_begin = st.date_input('Training Begin Date', value = pd.to_datetime('2020-01-01'))
+    st.caption(f'Training Begin Date starts at the selected "Start Date":  {start}')
     training_begin = X.index.min()
 
+
     # Select the ending period for the trianing data with an offet timeframe
-    training_end = X.index.min() + DateOffset(months=6)
+    #training_end = st.date_input('Training End Date', value = pd.to_datetime('2021-01-01'))
+    months = st.number_input("Enter number of months for DateOffset", 6)
+    training_end = X.index.min() + DateOffset(months=months)
+    st.caption(f'Training End Date ends:  {training_end}')
 
     # Generate the X_train and y_train DataFrame
     X_train = X.loc[training_begin:training_end]
@@ -352,9 +358,6 @@ if option == 'Machine Learning Classifier - AdaBoost':
     # Generate the X_test and y_test DataFrames
     X_test = X.loc[training_end+DateOffset(days=1):]
     y_test = y.loc[training_end+DateOffset(days=1):]
-
-
-####
 
     # Scale the features DataFrame
     # Create a StandardScaler instance
@@ -367,8 +370,6 @@ if option == 'Machine Learning Classifier - AdaBoost':
     X_train_scaled = X_scaler.transform(X_train)
     X_test_scaled = X_scaler.transform(X_test)
     
-
-####
     # Initiate the AdaBoostClassifier model instance
     ab_model = AdaBoostClassifier()
 
@@ -379,13 +380,13 @@ if option == 'Machine Learning Classifier - AdaBoost':
     ab_y_pred = ab_model.predict(X_test)
 
     # Backtest the AdaBoost Model to evaluate performance
+    st.write('**AdaBoost Testing Classification Report**')
     ab_testing_report = classification_report(y_test,ab_y_pred)
 
     # Print the classification report
     st.write(ab_testing_report)
 
     # Create a new empty predictions DataFrame.
-
     # Create a predictions DataFrame
     alt_predictions_df = pd.DataFrame(index=X_test.index)
 
