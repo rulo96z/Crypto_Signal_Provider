@@ -23,6 +23,30 @@ from sklearn import svm
 from pandas.tseries.offsets import DateOffset
 from sklearn.metrics import classification_report
 from sklearn.ensemble import AdaBoostClassifier
+import numpy as np
+from tensorflow import keras
+import plotly.express as px
+
+# 2  PERFORM EXPLORATORY DATA ANALYSIS AND VISUALIZATION
+
+# Function to normalize stock prices based on their initial price
+def normalize(df):
+  x = df.copy()
+  for i in x.columns[1:]:
+    x[i] = x[i]/x[i][0]
+  return x
+
+# Function to plot interactive plots using Plotly Express
+print("Function to plot interactive plots using Plotly Express")
+def interactive_plot(df, title):
+  fig = px.line(title = title)
+  for i in df.columns[1:]:
+    fig.add_scatter(x = df['Date'], y = df[i], name = i)
+  fig.show()
+
+# Function to concatenate the date, stock price, and volume in one dataframe
+def individual_stock(price_df, vol_df, name):
+    return pd.DataFrame({'Date': price_df['Date'], 'Close': price_df[name], 'Volume': vol_df[name]})
 
 # Load .env environment variables
 load_dotenv()
@@ -40,6 +64,7 @@ st.sidebar.title("Crypto Signal Settings")
 
 # Get nomics api key
 nomics_api_key = os.getenv("NOMICS_API_KEY")
+#nomics_api_key = "m_bc3c8d898e03e664c45cf58026267ce692f2421c"
 nomics_url = "https://api.nomics.com/v1/prices?key=" + nomics_api_key
 nomics_currency_url = ("https://api.nomics.com/v1/currencies/ticker?key=" + nomics_api_key + "&interval=1d,30d&per-page=10&page=1")
 
@@ -53,7 +78,7 @@ top_cryptos_df = pd.DataFrame()
 top_cryptos_df = nomics_df[['rank', 'logo_url', 'name', 'currency', 'price', 'price_date', 'market_cap']]
 
 # This code gives us the sidebar on streamlit for the different dashboards
-option = st.sidebar.selectbox("Dashboards", ('Top 10 Cryptocurrencies by Market Cap', 'Time-Series Forecasting - FB Prophet', 'Keras Model', 'Machine Learning Classifier - AdaBoost', 'Support Vector Machines'))
+option = st.sidebar.selectbox("Dashboards", ('Top 10 Cryptocurrencies by Market Cap', 'Time-Series Forecasting - FB Prophet', "LSTM Model", 'Keras Model', 'Machine Learning Classifier - AdaBoost', 'Support Vector Machines'))
 
 # Rename column labels
 columns=['Rank', 'Logo', 'Currency', 'Symbol', 'Price (USD)', 'Price Date', 'Market Cap']
@@ -530,3 +555,135 @@ if option == 'Support Vector Machines':
 
     st.subheader(f"Actual Returns vs. Strategy Returns")
     st.line_chart((1 + svm_predictions_df[['Actual Returns','Strategy Returns']]).cumprod())
+    
+      
+        #### LSTM Model ####
+
+    # This option gives users the ability to use LSTM model
+if option == 'LSTM Model':
+    # Line charts are created based on dropdown selection
+    if len(dropdown) > 0:
+        coin_choice = dropdown[0] 
+        coin_list = yf.download(coin_choice,start,end)
+        #coin_list['Ticker'] = coin_choice # This tests that the selected ticker is displayed in the DataFrame
+
+    # Preparing the data
+    # Displays dataframe of selected cryptocurrency.  Isolated columns as trading features for forecasting cryptocurrency.
+    st.subheader(f"LSTM Model")
+    st.subheader(f"Selected Crypto:  {dropdown}")
+    coin_training_df = coin_list#[["Close", "High", "Low", "Open", "Volume"]]
+    coin_training_df.index=pd.to_datetime(coin_training_df.index).date
+    coin_training_df["Date"]=pd.to_datetime(coin_training_df.index).date
+    st.dataframe(coin_training_df)
+    
+    
+    stock_price_df = coin_training_df
+
+    # Read the stocks volume data
+    #stock_vol_df = pd.read_csv("stock.csv")
+    stock_vol_df = coin_training_df
+
+    # Sort the data based on Date
+    stock_price_df = stock_price_df.sort_values(by = ['Date'])
+
+    # Sort the data based on Date
+    stock_vol_df = stock_vol_df.sort_values(by = ['Date'])
+
+    # Check if Null values exist in stock prices data
+    stock_price_df.isnull().sum()
+
+    # Check if Null values exist in stocks volume data
+    stock_vol_df.isnull().sum()
+
+
+    # 4 TRAIN AN LSTM TIME SERIES MODEL
+
+    # Let's test the functions and get individual stock prices and volumes
+    price_volume_df = individual_stock(stock_price_df, stock_vol_df, 'Close')
+
+    # Get the close and volume data as training data (Input)
+    training_data = price_volume_df.iloc[:, 1:3].values
+
+    # Normalize the data
+    from sklearn.preprocessing import MinMaxScaler
+    sc = MinMaxScaler(feature_range = (0, 1))
+    training_set_scaled = sc.fit_transform(training_data)
+
+    # Create the training and testing data, training data contains present day and previous day values
+    X = []
+    y = []
+    for i in range(1, len(price_volume_df)):
+        X.append(training_set_scaled [i-1:i, 0])
+        y.append(training_set_scaled [i, 0])
+
+    # Convert the data into array format
+    X = np.asarray(X)
+    y = np.asarray(y)
+
+    # Split the data for training, the rest for testing.  
+    split = int(0.7 * len(X))
+    X_train = X[:split]
+    y_train = y[:split]
+    X_test = X[split:]
+    y_test = y[split:]
+
+    # Reshape the 1D arrays to 3D arrays to feed in the model
+    X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
+    X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
+    X_train.shape, X_test.shape
+
+    # Create the model
+    inputs = keras.layers.Input(shape=(X_train.shape[1], X_train.shape[2]))
+    x = keras.layers.LSTM(150, return_sequences= True)(inputs)
+    x = keras.layers.Dropout(0.3)(x)
+    x = keras.layers.LSTM(150, return_sequences=True)(x)
+    x = keras.layers.Dropout(0.3)(x)
+    x = keras.layers.LSTM(150)(x)
+    outputs = keras.layers.Dense(1, activation='linear')(x)
+
+    model = keras.Model(inputs=inputs, outputs=outputs)
+    model.compile(optimizer='adam', loss="mse")
+    model.summary()
+
+    # Train the model
+    history = model.fit(
+        X_train, y_train,
+        epochs = 20,
+        batch_size = 32,
+        validation_split = 0.2)
+
+    # Make prediction
+    predicted = model.predict(X)
+
+    # Append the predicted values to the list
+    test_predicted = []
+    for i in predicted:
+        test_predicted.append(i[0])
+
+    # We take the median loss to evaluate the model
+    media = sum(history.history["loss"]) / len(history.history["loss"])
+    print("valuation losses for model %s" % media)
+    #############################################################################################################################
+    # Step 5
+    # Creando una tabla con las proyecciones
+    df_predicted = price_volume_df[1:][['Date']]
+
+    # Creando la columna de Predicciones
+    df_predicted['predictions'] = test_predicted
+
+    # Plot the data
+    close = []
+    for i in training_set_scaled:
+        close.append(i[0])
+
+    # Juntando la tabla final con (Dia, Prediccion y Cierre)
+    df_predicted['Close'] = close[1:]
+
+    # Plot the data
+    #interactive_plot(df_predicted, "Original Vs Prediction")
+    st.write(f"Evaluation loss {round(media*100, 6)}%")
+    graphic_data = {}
+    graphic_data["Actual"]=df_predicted["Close"]
+    graphic_data["Prediction"] = df_predicted["predictions"]
+    st.line_chart(graphic_data)
+    
