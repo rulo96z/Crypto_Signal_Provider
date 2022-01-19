@@ -63,6 +63,7 @@ st.image(image,width = 600)
 # Header for main and sidebar
 st.title( "Crypto Signal Provider Web App")
 st.markdown("""This app displays top 10 cryptocurrencies by market cap.""")
+st.caption("NOTE: USDT & USDC are stablecoins pegged to the Dollar.")
 st.sidebar.title("Crypto Signal Settings")
 
 # Get nomics api key
@@ -901,11 +902,15 @@ if option == 'Logistic Regression':
     as the target. The Signals were defined as: days where the percent change was greater than or equal to 0 as a buy and less 
     than 0 as a sell. Its clear that the accuracy of this model is relativeley low, around 50%. I think its important to note that
     the Model is not a bad model, its the data that is the cause of the low accuracy. Logistic Regression does a good job of 
-    classifying binary outcomes. Going into the project I thought that a binary outcome, buy or sell, would be a good dataset 
-    to train the model with. Clearly this model is lacking features. 
-    When the accuracy of a model is 50% I think its important to recognize that it is more an accuracy score of the data that was 
-    provided. 
-    Data Scientists today spend much time engineering features,
-    and moving forward, I think this model could benefit greatly from feature engineering.
+    classifying binary outcomes, when the features are robust and multi-dimensional. It has become clear that using a simple moving 
+    average as the feature is not going to get great prediction results as far as price. I think that a Logistic Regression model 
+    could work better with several classification features. One example of this could be Sentiment that is collected via twitter 
+    or Social Media. Tracking if people are mentioning via social media whether they are 'Bullish' or 'Bearish' and then training 
+    a LR model to this data could be interesting. Clearly this model is lacking features. With the accuracy of a model is 50% I 
+    think its important to recognize that it is more an accuracy score of the data that was trained with.
+    Data Scientists today spend much time engineering features, in fact according to a Forbes survey, data scientists spend 80%
+    of their time on data preperation including feature engineering. Moving forward with this model I think it could benefit 
+    greatly from collecting robust features.
+    
     
     """)
