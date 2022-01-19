@@ -529,6 +529,7 @@ if option == 'Support Vector Machines':
     st.dataframe(svm_predictions_df)
 
     st.subheader(f"Actual Returns vs. Strategy Returns")
+<<<<<<< HEAD
     st.line_chart((1 + svm_predictions_df[['Actual Returns','Strategy Returns']]).cumprod())
 
 
@@ -632,3 +633,6 @@ if option == 'Logistic Regression':
     
     """)
 
+=======
+    st.line_chart((1 + svm_predictions_df[['Actual Returns','Strategy Returns']]).cumprod())
+>>>>>>> parent of c102f25... update with LSTM Model
