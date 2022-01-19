@@ -85,13 +85,13 @@ Have Fun...
 
 This code was created in 2021 for a project at (Education Services at UCB). 
 
-Additional updates/ uploads for usability was added by `cbuted@gmail.com`
+Additional updates/ uploads for usability was added by [Christina San Diego](mailto:cbuted@gmail.com)
 
-Additional updates/ uploads for usability was added by `stephenthomas43@gmail.com`
+Additional updates/ uploads for usability was added by [Stephen Thomas](mailto:stephenthomas43@gmail.com)
 
-Additional updates/ uploads for usability was added by `thomasleahy6@gmail.com`
+Additional updates/ uploads for usability was added by [Thomas Leahy](mailto:thomasleahy6@gmail.com)
 
-Additional updates/ uploads for usability was added by `rulo.nogales@nogalesinvestments.com`
+Additional updates/ uploads for usability was added by [Raul Nogales](mailto:rulo.nogales@nogalesinvestments.com)
 
 [Trilogy Education Services](https://www.trilogyed.com/)
 
