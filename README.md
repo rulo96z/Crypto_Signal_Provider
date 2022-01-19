@@ -18,7 +18,7 @@ Machine Learning Models included:
 
 ``` Support Vector Method ```
 
-``` Logistic Regression '''
+``` Logistic Regression ```
 
 
 ## Technologies
