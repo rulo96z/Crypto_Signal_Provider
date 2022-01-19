@@ -67,7 +67,6 @@ st.sidebar.title("Crypto Signal Settings")
 
 # Get nomics api key
 nomics_api_key = os.getenv("NOMICS_API_KEY")
-#nomics_api_key = "m_bc3c8d898e03e664c45cf58026267ce692f2421c"
 nomics_url = "https://api.nomics.com/v1/prices?key=" + nomics_api_key
 nomics_currency_url = ("https://api.nomics.com/v1/currencies/ticker?key=" + nomics_api_key + "&interval=1d,30d&per-page=10&page=1")
 
