@@ -36,6 +36,8 @@ This Web App was written in Python 3.7 with the following packages and modules:
 - sklearn
 - plotly
 - matplotlib
+- dotenv
+
 
 ## Installation Guide
 
@@ -67,6 +69,8 @@ To get started using this application please go to [Python Download](https://www
 ``` pip install -U scikit-learn ```
   
 ``` pip install plotly-express ```
+
+``` pip install python-dotenv ```
 
 
 ## Usage
