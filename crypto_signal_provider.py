@@ -26,6 +26,9 @@ from sklearn.ensemble import AdaBoostClassifier
 import numpy as np
 from tensorflow import keras
 import plotly.express as px
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score
+from sklearn.linear_model import LogisticRegression
 
 # 2  PERFORM EXPLORATORY DATA ANALYSIS AND VISUALIZATION
 
@@ -78,7 +81,7 @@ top_cryptos_df = pd.DataFrame()
 top_cryptos_df = nomics_df[['rank', 'logo_url', 'name', 'currency', 'price', 'price_date', 'market_cap']]
 
 # This code gives us the sidebar on streamlit for the different dashboards
-option = st.sidebar.selectbox("Dashboards", ('Top 10 Cryptocurrencies by Market Cap', 'Time-Series Forecasting - FB Prophet', "LSTM Model", 'Keras Model', 'Machine Learning Classifier - AdaBoost', 'Support Vector Machines'))
+option = st.sidebar.selectbox("Dashboards", ('Top 10 Cryptocurrencies by Market Cap', 'Time-Series Forecasting - FB Prophet', "LSTM Model", 'Keras Model', 'Machine Learning Classifier - AdaBoost', 'Support Vector Machines', 'Logistic Regression'))
 
 # Rename column labels
 columns=['Rank', 'Logo', 'Currency', 'Symbol', 'Price (USD)', 'Price Date', 'Market Cap']
@@ -686,3 +689,96 @@ if option == 'LSTM Model':
     graphic_data["Actual"]=df_predicted["Close"]
     graphic_data["Prediction"] = df_predicted["predictions"]
     st.line_chart(graphic_data)
+
+if option == 'Logistic Regression':
+    
+    top_cryptos_df.Logo = path_to_image_html(top_cryptos_df.Logo)
+    st.write(top_cryptos_df.to_html(escape=False), unsafe_allow_html=True)
+    st.text("")
+
+    st.subheader("Performance Forecasting - Logistic Regression Model")
+
+    # Line charts are created based on dropdown selection
+    if len(dropdown) > 0:
+        coin_choice = dropdown[0] 
+        coin_list = yf.download(coin_choice,start,end)
+        coin_list['Ticker'] = coin_choice
+    
+    # Find 'Act Returns' and assign to new column.
+    coin_list_df = coin_list
+    coin_list_df['Actual Returns'] = coin_list_df['Adj Close'].pct_change()
+    
+    # Set 'Short' and 'Long' window
+    short_window = 4
+    long_window = 50
+    
+    # Find the rolling average and assign to new columns labeled SMA_Fast, SMA_Slow.
+    coin_list_df['SMA_Slow'] = coin_list_df['Adj Close'].rolling(window=short_window).mean()
+    coin_list_df['SMA_Fast'] = coin_list_df['Adj Close'].rolling(window=long_window).mean()
+    
+    # Assign SMA columns to X
+    X = coin_list_df[['SMA_Fast', 'SMA_Slow']].shift().dropna().copy()
+
+    # Create a new column named 'Signal' as a place holder.
+    coin_list_df['Signal'] = 0.0
+    
+    # Set signals based on actual returns being greater or less than 0.
+    coin_list_df.loc[(coin_list_df['Actual Returns'] >= 0), 'Signal'] = 1
+    coin_list_df.loc[(coin_list_df['Actual Returns'] < 0), 'Signal'] = -1
+    
+    # Set y dataset to 'Signal' column and drop nan values.
+    y = coin_list_df['Signal'].dropna()
+    y = y.iloc[50:]
+    coin_list_df.dropna()
+
+    # Import train_test_split function to separate data into X and y datasets.
+    X_train, X_test, y_train, y_test = train_test_split(X,y, random_state=1)
+    
+    # Import StandardScaler() function and scale X_train and X_test datasets.
+    scaler = StandardScaler()
+    X_scaler = scaler.fit(X_train)
+    X_train_scaled = X_scaler.transform(X_train)
+    X_test_scaled = X_scaler.transform(X_test)
+
+    # Import LR and instantiate a model.
+    lr_model = LogisticRegression()
+    lr_model.fit(X_train, y_train)
+    testing_predictions = lr_model.predict(X_test)
+
+    
+    # Import and print accuracy report.
+    accuracy = accuracy_score(y_test, testing_predictions)
+    res = round(accuracy,1) * 100
+    st.subheader(f"Accuracy of the Logistic Regression Model is {res} %")
+    st.write(accuracy)
+
+    # Import and print classification report.
+    training_report = classification_report(y_test, testing_predictions)
+    res_1 = training_report
+    st.subheader(f"{res_1}")
+    
+    testing_matrix = confusion_matrix(y_test, testing_predictions)
+    # Print confusion matrix.
+    st.subheader(f"Confusion Matrix")
+    st.text("The Confusion Matrix is a table that allows visualization of the performance of an algorithm")
+    st.caption("Predicted True / Actually True                Predicted False / Actually True")
+    st.caption("Predicted False / Actually True               Predicted False / Actually False")
+    st.write(testing_matrix)
+    
+    
+    # Comments on Conclusion ect.
+    st.subheader("Conclusions")
+    st.text("""
+
+    For this Logistic Regression Model I used a 4 & 100 day Moving Average as the feature, and a buy and sell signal 
+    as the target. The Signals were defined as: days where the percent change was greater than or equal to 0 as a buy and less 
+    than 0 as a sell. Its clear that the accuracy of this model is relativeley low, around 50%. I think its important to note that
+    the Model is not a bad model, its the data that is the cause of the low accuracy. Logistic Regression does a good job of 
+    classifying binary outcomes. Going into the project I thought that a binary outcome, buy or sell, would be a good dataset 
+    to train the model with. Clearly this model is lacking features. 
+    When the accuracy of a model is 50% I think its important to recognize that it is more an accuracy score of the data that was 
+    provided. 
+    Data Scientists today spend much time engineering features,
+    and moving forward, I think this model could benefit greatly from feature engineering.
+    
+    """)
