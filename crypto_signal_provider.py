@@ -23,6 +23,30 @@ from sklearn import svm
 from pandas.tseries.offsets import DateOffset
 from sklearn.metrics import classification_report
 from sklearn.ensemble import AdaBoostClassifier
+import numpy as np
+from tensorflow import keras
+import plotly.express as px
+
+# 2  PERFORM EXPLORATORY DATA ANALYSIS AND VISUALIZATION
+
+# Function to normalize stock prices based on their initial price
+def normalize(df):
+  x = df.copy()
+  for i in x.columns[1:]:
+    x[i] = x[i]/x[i][0]
+  return x
+
+# Function to plot interactive plots using Plotly Express
+print("Function to plot interactive plots using Plotly Express")
+def interactive_plot(df, title):
+  fig = px.line(title = title)
+  for i in df.columns[1:]:
+    fig.add_scatter(x = df['Date'], y = df[i], name = i)
+  fig.show()
+
+# Function to concatenate the date, stock price, and volume in one dataframe
+def individual_stock(price_df, vol_df, name):
+    return pd.DataFrame({'Date': price_df['Date'], 'Close': price_df[name], 'Volume': vol_df[name]})
 
 # Load .env environment variables
 load_dotenv()
@@ -40,6 +64,7 @@ st.sidebar.title("Crypto Signal Settings")
 
 # Get nomics api key
 nomics_api_key = os.getenv("NOMICS_API_KEY")
+#nomics_api_key = "m_bc3c8d898e03e664c45cf58026267ce692f2421c"
 nomics_url = "https://api.nomics.com/v1/prices?key=" + nomics_api_key
 nomics_currency_url = ("https://api.nomics.com/v1/currencies/ticker?key=" + nomics_api_key + "&interval=1d,30d&per-page=10&page=1")
 
@@ -53,7 +78,7 @@ top_cryptos_df = pd.DataFrame()
 top_cryptos_df = nomics_df[['rank', 'logo_url', 'name', 'currency', 'price', 'price_date', 'market_cap']]
 
 # This code gives us the sidebar on streamlit for the different dashboards
-option = st.sidebar.selectbox("Dashboards", ('Top 10 Cryptocurrencies by Market Cap', 'Time-Series Forecasting - FB Prophet', 'Keras Model', 'Machine Learning Classifier - AdaBoost', 'Support Vector Machines'))
+option = st.sidebar.selectbox("Dashboards", ('Top 10 Cryptocurrencies by Market Cap', 'Time-Series Forecasting - FB Prophet', "LSTM Model", 'Keras Model', 'Machine Learning Classifier - AdaBoost', 'Support Vector Machines'))
 
 # Rename column labels
 columns=['Rank', 'Logo', 'Currency', 'Symbol', 'Price (USD)', 'Price Date', 'Market Cap']
@@ -530,105 +555,135 @@ if option == 'Support Vector Machines':
 
     st.subheader(f"Actual Returns vs. Strategy Returns")
     st.line_chart((1 + svm_predictions_df[['Actual Returns','Strategy Returns']]).cumprod())
-
-
-if option == 'Logistic Regression':
     
-    top_cryptos_df.Logo = path_to_image_html(top_cryptos_df.Logo)
-    st.write(top_cryptos_df.to_html(escape=False), unsafe_allow_html=True)
-    st.text("")
+      
+        #### LSTM Model ####
 
-    st.subheader("Performance Forecasting - Logistic Regression Model")
-
+    # This option gives users the ability to use LSTM model
+if option == 'LSTM Model':
     # Line charts are created based on dropdown selection
     if len(dropdown) > 0:
         coin_choice = dropdown[0] 
         coin_list = yf.download(coin_choice,start,end)
-        coin_list['Ticker'] = coin_choice
-    
-    # Find 'Act Returns' and assign to new column.
-    coin_list_df = coin_list
-    coin_list_df['Actual Returns'] = coin_list_df['Adj Close'].pct_change()
-    
-    # Set 'Short' and 'Long' window
-    short_window = 4
-    long_window = 50
-    
-    # Find the rolling average and assign to new columns labeled SMA_Fast, SMA_Slow.
-    coin_list_df['SMA_Slow'] = coin_list_df['Adj Close'].rolling(window=short_window).mean()
-    coin_list_df['SMA_Fast'] = coin_list_df['Adj Close'].rolling(window=long_window).mean()
-    
-    # Assign SMA columns to X
-    X = coin_list_df[['SMA_Fast', 'SMA_Slow']].shift().dropna().copy()
+        #coin_list['Ticker'] = coin_choice # This tests that the selected ticker is displayed in the DataFrame
 
-    # Create a new column named 'Signal' as a place holder.
-    coin_list_df['Signal'] = 0.0
+    # Preparing the data
+    # Displays dataframe of selected cryptocurrency.  Isolated columns as trading features for forecasting cryptocurrency.
+    st.subheader(f"LSTM Model")
+    st.subheader(f"Selected Crypto:  {dropdown}")
+    coin_training_df = coin_list#[["Close", "High", "Low", "Open", "Volume"]]
+    coin_training_df.index=pd.to_datetime(coin_training_df.index).date
+    coin_training_df["Date"]=pd.to_datetime(coin_training_df.index).date
+    st.dataframe(coin_training_df)
     
-    # Set signals based on actual returns being greater or less than 0.
-    coin_list_df.loc[(coin_list_df['Actual Returns'] >= 0), 'Signal'] = 1
-    coin_list_df.loc[(coin_list_df['Actual Returns'] < 0), 'Signal'] = -1
     
-    # Set y dataset to 'Signal' column and drop nan values.
-    y = coin_list_df['Signal'].dropna()
-    y = y.iloc[50:]
-    coin_list_df.dropna()
+    stock_price_df = coin_training_df
 
-    # Import train_test_split function to separate data into X and y datasets.
-    from sklearn.model_selection import train_test_split
-    X_train, X_test, y_train, y_test = train_test_split(X,y, random_state=1)
-    
-    # Import StandardScaler() function and scale X_train and X_test datasets.
-    from sklearn.preprocessing import StandardScaler
-    scaler = StandardScaler()
-    X_scaler = scaler.fit(X_train)
-    X_train_scaled = X_scaler.transform(X_train)
-    X_test_scaled = X_scaler.transform(X_test)
+    # Read the stocks volume data
+    #stock_vol_df = pd.read_csv("stock.csv")
+    stock_vol_df = coin_training_df
 
-    # Import LR and instantiate a model.
-    from sklearn.linear_model import LogisticRegression
-    lr_model = LogisticRegression()
-    lr_model.fit(X_train, y_train)
-    testing_predictions = lr_model.predict(X_test)
+    # Sort the data based on Date
+    stock_price_df = stock_price_df.sort_values(by = ['Date'])
 
-    
-    # Import and print accuracy report.
-    from sklearn.metrics import accuracy_score
-    accuracy = accuracy_score(y_test, testing_predictions)
-    res = round(accuracy,1) * 100
-    st.subheader(f"Accuracy of the Logistic Regression Model is {res} %")
-    st.write(accuracy)
+    # Sort the data based on Date
+    stock_vol_df = stock_vol_df.sort_values(by = ['Date'])
 
-    # Import and print classification report.
-    from sklearn.metrics import classification_report
-    training_report = classification_report(y_test, testing_predictions)
-    res_1 = training_report
-    st.subheader(f"{res_1}")
-    
-    # Import confusion matrix.
-    from sklearn.metrics import confusion_matrix
-    testing_matrix = confusion_matrix(y_test, testing_predictions)
-    # Print confusion matrix.
-    st.subheader(f"Confusion Matrix")
-    st.text("The Confusion Matrix is a table that allows visualization of the performance of an algorithm")
-    st.caption("Predicted True / Actually True                Predicted False / Actually True")
-    st.caption("Predicted False / Actually True               Predicted False / Actually False")
-    st.write(testing_matrix)
-    
-    
-    # Comments on Conclusion ect.
-    st.subheader("Conclusions")
-    st.text("""
+    # Check if Null values exist in stock prices data
+    stock_price_df.isnull().sum()
 
-    For this Logistic Regression Model I used a 4 & 100 day Moving Average as the feature, and a buy and sell signal 
-    as the target. The Signals were defined as: days where the percent change was greater than or equal to 0 as a buy and less 
-    than 0 as a sell. Its clear that the accuracy of this model is relativeley low, around 50%. I think its important to note that
-    the Model is not a bad model, its the data that is the cause of the low accuracy. Logistic Regression does a good job of 
-    classifying binary outcomes. Going into the project I thought that a binary outcome, buy or sell, would be a good dataset 
-    to train the model with. Clearly this model is lacking features. 
-    When the accuracy of a model is 50% I think its important to recognize that it is more an accuracy score of the data that was 
-    provided. 
-    Data Scientists today spend much time engineering features,
-    and moving forward, I think this model could benefit greatly from feature engineering.
-    
-    """)
+    # Check if Null values exist in stocks volume data
+    stock_vol_df.isnull().sum()
 
+
+    # 4 TRAIN AN LSTM TIME SERIES MODEL
+
+    # Let's test the functions and get individual stock prices and volumes
+    price_volume_df = individual_stock(stock_price_df, stock_vol_df, 'Close')
+
+    # Get the close and volume data as training data (Input)
+    training_data = price_volume_df.iloc[:, 1:3].values
+
+    # Normalize the data
+    from sklearn.preprocessing import MinMaxScaler
+    sc = MinMaxScaler(feature_range = (0, 1))
+    training_set_scaled = sc.fit_transform(training_data)
+
+    # Create the training and testing data, training data contains present day and previous day values
+    X = []
+    y = []
+    for i in range(1, len(price_volume_df)):
+        X.append(training_set_scaled [i-1:i, 0])
+        y.append(training_set_scaled [i, 0])
+
+    # Convert the data into array format
+    X = np.asarray(X)
+    y = np.asarray(y)
+
+    # Split the data for training, the rest for testing.  
+    split = int(0.7 * len(X))
+    X_train = X[:split]
+    y_train = y[:split]
+    X_test = X[split:]
+    y_test = y[split:]
+
+    # Reshape the 1D arrays to 3D arrays to feed in the model
+    X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
+    X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
+    X_train.shape, X_test.shape
+
+    # Create the model
+    inputs = keras.layers.Input(shape=(X_train.shape[1], X_train.shape[2]))
+    x = keras.layers.LSTM(150, return_sequences= True)(inputs)
+    x = keras.layers.Dropout(0.3)(x)
+    x = keras.layers.LSTM(150, return_sequences=True)(x)
+    x = keras.layers.Dropout(0.3)(x)
+    x = keras.layers.LSTM(150)(x)
+    outputs = keras.layers.Dense(1, activation='linear')(x)
+
+    model = keras.Model(inputs=inputs, outputs=outputs)
+    model.compile(optimizer='adam', loss="mse")
+    model.summary()
+
+    # Train the model
+    history = model.fit(
+        X_train, y_train,
+        epochs = 20,
+        batch_size = 32,
+        validation_split = 0.2)
+
+    # Make prediction
+    predicted = model.predict(X)
+
+    # Append the predicted values to the list
+    test_predicted = []
+    for i in predicted:
+        test_predicted.append(i[0])
+
+    # We take the median loss to evaluate the model
+    media = sum(history.history["loss"]) / len(history.history["loss"])
+    print("valuation losses for model %s" % media)
+    #############################################################################################################################
+    # Step 5
+    # Creando una tabla con las proyecciones
+    df_predicted = price_volume_df[1:][['Date']]
+
+    # Creando la columna de Predicciones
+    df_predicted['predictions'] = test_predicted
+
+    # Plot the data
+    close = []
+    for i in training_set_scaled:
+        close.append(i[0])
+
+    # Juntando la tabla final con (Dia, Prediccion y Cierre)
+    df_predicted['Close'] = close[1:]
+
+    # Plot the data
+    #interactive_plot(df_predicted, "Original Vs Prediction")
+    st.write(f"Evaluation loss {round(media*100, 6)}%")
+    graphic_data = {}
+    graphic_data["Actual"]=df_predicted["Close"]
+    graphic_data["Prediction"] = df_predicted["predictions"]
+    st.line_chart(graphic_data)
+    
