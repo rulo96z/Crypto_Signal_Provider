@@ -189,7 +189,6 @@ if option == 'Keras Model':
     if len(dropdown) > 0:
         coin_choice = dropdown[0] 
         coin_list = yf.download(coin_choice,start,end)
-        #coin_list['Ticker'] = coin_choice # This tests that the selected ticker is displayed in the DataFrame
 
     # Preparing the data
     # Displays dataframe of selected cryptocurrency.  Isolated columns as trading features for forecasting cryptocurrency.
@@ -340,13 +339,11 @@ if option == 'Machine Learning Classifier - AdaBoost':
 
     st.subheader("Training Model")
     # Select the start of the training period
-    #training_begin = st.date_input('Training Begin Date', value = pd.to_datetime('2020-01-01'))
     st.caption(f'Training Begin Date starts at the selected "Start Date":  {start}')
     training_begin = X.index.min()
 
 
     # Select the ending period for the trianing data with an offet timeframe
-    #training_end = st.date_input('Training End Date', value = pd.to_datetime('2021-01-01'))
     months = st.number_input("Enter number of months for DateOffset", 6)
     training_end = X.index.min() + DateOffset(months=months)
     st.caption(f'Training End Date ends:  {training_end}')
