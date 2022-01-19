@@ -9,10 +9,15 @@ This is a web application that allows users to select a cryptocurrency, select a
 Machine Learning Models included:
 
 ``` Time Series Forecasting - FB Prophet ```
+
 ``` LSTM Model ```
+
 ``` Keras & Deep Neural Network ```
+
 ``` AdaBoost ```
+
 ``` Support Vector Method ```
+
 ``` Logistic Regression '''
 
 
