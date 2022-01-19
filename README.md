@@ -80,11 +80,17 @@ Have Fun...
 ## Contributors
 
 This code was created in 2021 for a project at (Education Services at UCB). 
+
 Additional updates/ uploads for usability was added by `cbuted@gmail.com`
+
 Additional updates/ uploads for usability was added by `stephenthomas43@gmail.com`
+
 Additional updates/ uploads for usability was added by `thomasleahy6@gmail.com`
+
 Additional updates/ uploads for usability was added by `rulo.nogales@nogalesinvestments.com`
+
 [Trilogy Education Services](https://www.trilogyed.com/)
+
 [UC Berkeley Extension ](https://extension.berkeley.edu/)
 
 
