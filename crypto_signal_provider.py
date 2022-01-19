@@ -374,7 +374,7 @@ if option == 'Machine Learning Classifier - AdaBoost':
 
     # Select the ending period for the trianing data with an offet timeframe
     #training_end = st.date_input('Training End Date', value = pd.to_datetime('2021-01-01'))
-    months = st.number_input("Enter number of months for DateOffset", 6)
+    months = st.number_input("Enter number of months for DateOffset", 2)
     training_end = X.index.min() + DateOffset(months=months)
     st.caption(f'Training End Date ends:  {training_end}')
 
@@ -505,7 +505,9 @@ if option == 'Support Vector Machines':
     #### Is there a way to make this a selection the user makes? ####
 
     # Select the ending period for the training data with an offset of 2 months
-    svm_training_end = (svm_X.index.min() + DateOffset(months=2))
+    months = st.number_input("Enter number of months for DateOffset", 2)
+    svm_training_end = svm_X.index.min() + DateOffset(months=months)
+    st.caption(f'Training End Date ends:  {svm_training_end}')
                                     
     # Generate the X_train and y_train DataFrame
     svm_X_train = svm_X.loc[svm_training_begin:svm_training_end]
@@ -535,6 +537,7 @@ if option == 'Support Vector Machines':
     svm_y_pred = svm_model.predict(svm_X_test)
 
     # Use a classification report to evaluate the model using the predictions and testing data
+    st.write('**Support Vector Machines Classification Report**')
     svm_testing_report = classification_report(svm_y_test,svm_y_pred)
 
     # Print the classification report
