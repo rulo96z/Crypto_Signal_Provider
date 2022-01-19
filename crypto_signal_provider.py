@@ -124,7 +124,6 @@ def path_to_image_html(Logo):
 # Pulls list of cryptocurrencies from nomics and concatenates to work with Yahoo Finance
 coin = top_cryptos_df['Symbol'] + "-USD"
 
-
 # Creates a dropdown list of cryptocurrencies based on top 100 list
 dropdown = st.sidebar.multiselect("Select 1 coin to analyze", coin, default=['SOL-USD'])
 
@@ -157,7 +156,6 @@ if option == 'Top 10 Cryptocurrencies by Market Cap':
     # Display coin_list into a chart
     st.subheader(f'Selected Crypto Over Time: {dropdown}')
     st.line_chart(coin_list['Adj Close'])
-
 
 # This option gives users the ability to use FB Prophet
 if option == 'Time-Series Forecasting - FB Prophet':
@@ -216,13 +214,12 @@ if option == 'Keras Model':
     if len(dropdown) > 0:
         coin_choice = dropdown[0] 
         coin_list = yf.download(coin_choice,start,end)
-        #coin_list['Ticker'] = coin_choice # This tests that the selected ticker is displayed in the DataFrame
 
     # Preparing the data
     # Displays dataframe of selected cryptocurrency.  Isolated columns as trading features for forecasting cryptocurrency.
     st.subheader(f"Keras Model")
     st.subheader(f"Selected Crypto:  {dropdown}")
-    coin_training_df = coin_list#[["Close", "High", "Low", "Open", "Volume"]]
+    coin_training_df = coin_list
     coin_training_df.index=pd.to_datetime(coin_training_df.index).date
     st.dataframe(coin_training_df)
 
@@ -280,9 +277,6 @@ if option == 'Keras Model':
     # Add the output layer to the model specifying the number of output neurons and activation function
     nn.add(Dense(units=number_output_neurons, activation=output_activation))
 
-    # Display the Sequential model summary - WHY IS THIS NONE
-    # st.write(nn.summary())
-
     # Define functions
     loss = st.selectbox("Choose loss function", ('binary_crossentropy',' '))
     optimizer = st.selectbox("Choose optimizer", ('adam',' '))
@@ -295,7 +289,7 @@ if option == 'Keras Model':
     epochs = st.number_input("Enter number of epochs", 50)
     epochs = int(epochs)
 
-    fit_model=nn.fit(X_train_scaled, y_train, epochs=epochs) #ERROR STARTS HERE
+    fit_model=nn.fit(X_train_scaled, y_train, epochs=epochs)
     
     # Evaluate the model loss and accuracy metrics using the evaluate method and the test data
     model_loss, model_accuracy = nn.evaluate(X_test_scaled, y_test, verbose =2)
@@ -329,10 +323,10 @@ if option == 'Machine Learning Classifier - AdaBoost':
     coin_signals_df = coin_signals_df.dropna()
 
     # Set the short window and long window
-    short_window = st.number_input("Set a short window:", 4)
+    short_window = st.number_input("Set a short window:", 2)
     short_window = int(short_window)
 
-    long_window = st. number_input("Set a long window:", 85)
+    long_window = st. number_input("Set a long window:", 10)
     long_window = int(long_window)
 
     # Generate the fast and slow simple moving averages
@@ -367,14 +361,12 @@ if option == 'Machine Learning Classifier - AdaBoost':
 
     st.subheader("Training Model")
     # Select the start of the training period
-    #training_begin = st.date_input('Training Begin Date', value = pd.to_datetime('2020-01-01'))
     st.caption(f'Training Begin Date starts at the selected "Start Date":  {start}')
     training_begin = X.index.min()
 
 
     # Select the ending period for the trianing data with an offet timeframe
-    #training_end = st.date_input('Training End Date', value = pd.to_datetime('2021-01-01'))
-    months = st.number_input("Enter number of months for DateOffset", 2)
+    months = st.number_input("Enter number of months for DateOffset", 1)
     training_end = X.index.min() + DateOffset(months=months)
     st.caption(f'Training End Date ends:  {training_end}')
 
