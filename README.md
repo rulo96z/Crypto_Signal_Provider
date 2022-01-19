@@ -1,9 +1,20 @@
-# Crypto_Signal_Provider
+# Crypto Signal Provider
+
+
 ![CRYPTO SIGNAL](images/crypto_image.jpg)
 
-This is a web application that allows users to select a cryptocurrency, analyze its data and select a machine learning model to prediction its future price.
 
----
+This is a web application that allows users to select a cryptocurrency, select a machine learning model, and pull historical data to predict its future price. The application was built with the idea of being interactive for the user. When possible we have tried to build a product that allows the user to play with parameters.  
+
+Machine Learning Models included:
+
+``` Time Series Forecasting - FB Prophet ```
+``` LSTM Model ```
+``` Keras & Deep Neural Network ```
+``` AdaBoost ```
+``` Support Vector Method ```
+``` Logistic Regression '''
+
 
 ## Installation Guide
 
