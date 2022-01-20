@@ -186,12 +186,14 @@ if option == 'Time-Series Forecasting - FB Prophet':
 
     # Create a future DataFrame to hold predictions
     # Make the prediction go out as far as 60 days
-    future_coin_trends = model_coin_trends.make_future_dataframe(periods = 60, freq='D')
+    periods = st.number_input("Enter number of prediction days", 30)
+    future_coin_trends = model_coin_trends.make_future_dataframe(periods = 30, freq='D')
 
     # Make the predictions for the trend data using the future_coin_trends DataFrame
     forecast_coin_trends = model_coin_trends.predict(future_coin_trends)
 
     # Plot the Prophet predictions for the Coin trends data
+    st.markdown(f"Predictions Based on {dropdown} Trends Data")
     st.pyplot(model_coin_trends.plot(forecast_coin_trends));
 
     # Set the index in the forecast_coin_trends DataFrame to the ds datetime column
@@ -207,6 +209,27 @@ if option == 'Time-Series Forecasting - FB Prophet':
     
     st.subheader(f'{dropdown} - Price Predictions')
     st.dataframe(forecast_coin_trends_df)
+
+    st.subheader("Price Prediction with Daily Seasonality")
+
+    # Create the daily seasonality model
+    model_coin_seasonality = Prophet(daily_seasonality=True)
+
+    # Fit the model
+    model_coin_seasonality.fit(coin_list_df)
+
+    # Predict sales for ## of days out into the future
+    # Start by making a future dataframe
+    seasonality_periods = st.number_input("Enter number of future prediction days", 30)
+    coin_trends_seasonality_future = model_coin_seasonality.make_future_dataframe (periods=seasonality_periods, freq='D')
+
+    # Make predictions for each day over the next ## of days
+    coin_trends_seasonality_forecast = model_coin_seasonality.predict(coin_trends_seasonality_future)
+
+    seasonal_figs = model_coin_seasonality.plot_components(coin_trends_seasonality_forecast)
+    st.pyplot(seasonal_figs)
+
+    
 
 # This option gives users the ability to use Keras Model
 if option == 'Keras Model':
@@ -287,7 +310,7 @@ if option == 'Keras Model':
     nn.compile(loss=loss, optimizer=optimizer, metrics=[metrics])
 
     # Fit the model using 50 epochs and the training data
-    epochs = st.number_input("Enter number of epochs", 50)
+    epochs = st.number_input("Enter number of epochs", 10)
     epochs = int(epochs)
 
     fit_model=nn.fit(X_train_scaled, y_train, epochs=epochs)
