@@ -230,6 +230,7 @@ if option == 'Time-Series Forecasting - FB Prophet':
     st.pyplot(seasonal_figs)
 
     
+    
 
 # This option gives users the ability to use Keras Model
 if option == 'Keras Model':
